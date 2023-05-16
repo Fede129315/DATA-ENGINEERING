@@ -96,26 +96,35 @@ M_Adutos_AVG FLOAT NOT NULL,M_Ancianos_AVG FLOAT NOT NULL);
 --el cambio promedio en Temperatura y Oxigeno así cómo la suma total de otros
 --eventos mencionados por cuatrienios
 
---CREATE PROCEDURE pETL_Desastres()
---LANGUAGE plpgsql
---AS $$ 
---BEGIN
---END
---$$;
---https://onecompiler.com/postgresql/3z8p4rewx
+CREATE PROCEDURE pETL_Desastres()
+LANGUAGE plpgsql
+AS $$ 
+  BEGIN
+    DELETE FROM informe_desastre;
+    INSERT INTO informe_desastre
+    SELECT 
+    CASE WHEN c.año BETWEEN 2023 AND 2026 THEN 'Q1(2023-2026'
+    WHEN c.año BETWEEN 2027 AND 2030 THEN 'Q2(2027-2030)'
+    ELSE 'ERROR'
+    END as Cuatrienio,
+    round(avg(c.Temperatura::numeric),2) as Temp_AVG ,round(avg(c.Oxigeno::numeric),2) as  Oxi_AVG,
+    round(sum(d.Tsunamis::numeric),2) as T_Tsunamis,round(sum(d.Olas_Calor::numeric),2) as T_Olas_Calor ,
+    round(sum(d.Terremotos::numeric),2) as T_Terremotos,round(sum(Erupciones::numeric),2) as T_Erupciones,
+    round(sum(d.Incendios::numeric),2) as T_Incendios,round(avg(m.M_Jovenes::numeric),2) as M_Jovenes_AVG,
+    round(avg(m.M_Adutos::numeric),2) as M_Adutos_AVG, round(avg(m.M_Adutos::numeric),2) as M_Adutos_AVG
+    FROM clima c
+    JOIN desastres d on d.año = c.año
+    JOIN (SELECT año,R_Menor15+R_15_a_30 as M_Jovenes, R_30_a_45 + R_45_a_60 as M_Adutos, R_M_a_60 as M_Ancianos 
+    FROM muertes) m on m.año = c.año
+    GROUP BY 1
+    ORDER BY 1;
+  END
+$$;
 
-SELECT 
-CASE WHEN c.año BETWEEN 2023 AND 2026 THEN 'Q1'
-WHEN c.año BETWEEN 2027 AND 2030 THEN 'Q2'
-ELSE 'ERROR'
-END,
-avg(c.Temperatura) as Temp_AVG ,avg(c.Oxigeno) as  Oxi_AVG,
-sum(d.Tsunamis) as T_Tsunamis,sum(d.Olas_Calor) as T_Olas_Calor ,
-sum(d.Terremotos) as T_Terremotos,sum(Erupciones) as T_Erupciones,
-sum(d.Incendios) as T_Incendios,
---avg(m.R_Menor15,m.R_15_a_30) as M_Jovenes_AVG
-FROM clima c
-JOIN desastres d on d.año = c.año
-JOIN muertes m on m.año = c.año
-GROUP BY 1
-ORDER BY 1;
+--14. Se llama al procedimiento
+
+CALL pETL_Desastres();
+
+--15. Consulta tabla desastres
+
+SELECT * FROM informe_desastre;
