@@ -8,3 +8,4 @@ Install the classic Jupyter Notebook with:
 __To run the notebook:__
 *jupyter notebook*
 
+### Ver https://learn.microsoft.com/es-es/sql/machine-learning/data-exploration/python-dataframe-sql-server?view=sql-server-ver16
