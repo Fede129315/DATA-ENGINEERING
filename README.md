@@ -9,3 +9,5 @@ __To run the notebook:__
 *jupyter notebook*
 
 ### Ver https://learn.microsoft.com/es-es/sql/machine-learning/data-exploration/python-dataframe-sql-server?view=sql-server-ver16
+### Ver https://docs.aws.amazon.com/es_es/redshift/latest/dg/t_Loading_data.html (carga de datos en AWS REDSHIFT)
+### Ver https://docs.aws.amazon.com/es_es/redshift/latest/dg/t_updating-inserting-using-staging-tables-.html (Actualización e inserción de datos nuevos AWS REDSHIFT)
