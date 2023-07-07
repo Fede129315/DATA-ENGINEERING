@@ -15,12 +15,14 @@ services:
     command: webserver
 
   etl:
-    build:
-      context: .
-      dockerfile: Dockerfile.etl
-    volumes:
-      - ./dags:/opt/airflow/dags
-    depends_on:
-      - airflow
-    environment:
-      - AIRFLOW_CONN_REDSHIFT=${REDSHIFT_CONNECTION}
+  build:
+    context: .
+    dockerfile: Dockerfile.etl
+  volumes:
+    - ./dags:/opt/airflow/dags
+  depends_on:
+    - airflow
+  environment:
+    - AIRFLOW_CONN_REDSHIFT=${REDSHIFT_CONNECTION}
+  networks:
+    - default
