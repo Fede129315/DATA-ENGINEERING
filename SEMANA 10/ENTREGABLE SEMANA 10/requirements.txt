@@ -1,9 +1,0 @@
-pandas
-lxml
-python-dotenv
-redshift_connector
-os
-requests
-bs4
-awswrangler
-numpy
