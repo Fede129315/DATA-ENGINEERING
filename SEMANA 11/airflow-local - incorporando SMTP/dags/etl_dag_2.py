@@ -46,6 +46,20 @@ cargar = PythonOperator(
     dag=dag,
 )
 
+enviar_exito = PythonOperator(
+    task_id='enviar_exito',
+    python_callable=scripts.enviar_exito,
+    dag=dag,
+    trigger_rule='all_success'
+)
+
+enviar_fallo = PythonOperator(
+    task_id='enviar_fallo',
+    python_callable=scripts.enviar_fallo,
+    dag=dag,
+    trigger_rule='all_failed'
+)
+
 
 
 # Definición de los operadores (tareas) en el DAG
@@ -53,4 +67,4 @@ inicio = DummyOperator(task_id='inicio', dag=dag)
 fin = DummyOperator(task_id='fin', dag=dag)
 
 # Definición de las dependencias entre las tareas
-inicio >>  (extraer_ranking,extraer_copa_mundo) >> transformar >> cargar >>  fin
+inicio >>  (extraer_ranking,extraer_copa_mundo) >> transformar >> cargar >> (enviar_exito,enviar_fallo) >>  fin

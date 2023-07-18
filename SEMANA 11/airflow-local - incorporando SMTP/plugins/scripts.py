@@ -10,6 +10,10 @@ import awswrangler as wr
 ###################### incorporamos lo necesario para el envío de mails
 import smtplib
 from email import message
+###################### incorporo para la prueba en postgre
+'''import psycopg2
+from io import StringIO 
+import csv'''
 ######################
 
 def extraer_copa_mundo(ti):
@@ -82,6 +86,7 @@ def extraer_ranking(ti):
     fifadf.to_csv(path,index=False,sep=';',encoding ='utf-8')
     ti.xcom_push(key="data_ranking", value=path)
 
+
 def transformar(ti):
     # Pull data from stack
     path_fifadf = ti.xcom_pull(key="data_ranking",task_ids='extraer_ranking')
@@ -115,6 +120,7 @@ def cargar(ti):
     #######################################
     # extract env
     dotenv.load_dotenv()
+    ##########################################REDSHIFT###################################################
     usuario = os.getenv('User')
     passwd = os.getenv('Password')
     host = os.getenv('host')
@@ -138,8 +144,26 @@ def cargar(ti):
         f' Pts INT, PJ INT, PG INT, PE INT, PP INT, GF INT, GC INT, Dif VARCHAR(5),copa_del_mundo INT,'
         f'Posición_Fifa float, Continente VARCHAR(30), Confederación VARCHAR(30), Total_puntos_fifa float) '
         f'DISTKEY(Selección) SORTKEY(Selección, Posición_Fifa,copa_del_mundo)')
+    
+    ##### postgre prueba####
+    '''username = os.getenv('POSTGRES_USER')
+    passwd = os.getenv('POSTGRES_PASSWORD')
+    hostname = os.getenv('POSTGRES_HOST')
+    database = os.getenv('POSTGRES_DB')
+    my_schema = os.getenv('POSTGRES_SCHEMA')
+    port = os.getenv('POSTGRES_PORT')
+    conn = psycopg2.connect(host=hostname, dbname=database, user=username, password=passwd, port=port)
+
+    conn.rollback() 
+    conn.autocommit = True
+    cursor = conn.cursor()
+    cursor.execute(f'CREATE SCHEMA if not exists {my_schema}')
+    cursor.execute(f'CREATE TABLE if not exists {my_schema}.fdg_psy (Selección VARCHAR(30), Pts INT, PJ INT, PG INT, PE INT, PP INT, GF INT, GC INT, Dif VARCHAR(5),Posición_Fifa float, Continente VARCHAR(30), Confederación VARCHAR(30), Total_puntos_fifa float)')'''
+
+
+
     ###############################
-    ####  Continuos with load  ####
+    ####  Continue with load  ####
     ###############################
     # Extraer data trasnformada dags
 
@@ -176,14 +200,28 @@ def cargar(ti):
                                    dffg_fifa_item.columns[13]: 'total_puntos_fifa'}, inplace=True)
 
     print(dffg_fifa_item)
-
-    wr.redshift.to_sql(df=dffg_fifa_item, con=conn, table='fasedegruposmundial', schema='federicobergada_coderhouse',
-                       mode='upsert', primary_keys=['selección', 'copa_del_mundo'], use_column_names=True)
+     ####LOAD_POSTGREPRUEBA
+    '''output = StringIO()
+    dffg_fifa.to_csv(output, sep=',', index = False, header = False, quoting=csv.QUOTE_NONE, escapechar='\\')
+    output.getvalue()
+    output.seek(0)
+    try:
+        cursor.copy_expert("COPY coder.fdg_psy FROM STDIN  (FORMAT 'csv', HEADER false)",output)     
+    except Exception as exeption:
+        raise exeption('fallo')'''
+   
+    ####LOAD_REDSHIFT
+    try:
+        wr.redshift.to_sql(df=dffg_fifa_item, con=conn, table='fasedegruposmundial', schema='federicobergada_coderhouse',
+                            mode='upsert', primary_keys=['selección', 'copa_del_mundo'], use_column_names=True)
+    except Exception as exeption:
+        raise exeption('fallo')
 
     cursor.close()
     conn.close()
 
-def enviar():
+
+def enviar_exito():
     dotenv.load_dotenv()
     email_remitente = os.getenv('remitente')
     password_email = os.getenv('password_email')
@@ -192,12 +230,36 @@ def enviar():
         x = smtplib.SMTP('smtp.gmail.com',587)
         x.starttls()
         x.login(email_remitente,password_email)
-        asunto = 'Notificaciones Airflow - Ejecución ETL copa del mundo'
+        asunto = 'Notificaciones Airflow - Ejecucion ETL copa del mundo'
+        asunto = asunto.encode('utf-8')
         cuerpo_mensaje_exito = 'La tarea se ha ejecutado satisfactoriamente'
+        cuerpo_mensaje_exito = cuerpo_mensaje_exito.encode('utf-8')
         mensaje_exito = 'Subject: {}\n\n{}'.format(asunto,cuerpo_mensaje_exito)
         x.sendmail(email_remitente,email_destinatario,mensaje_exito)
-        print('Exito')    
+        print('Exito en el envio del mail')    
     except Exception as exeption:
         print(exeption)
-        print('La ejecución de la tarea a sufrido fallos')
+        print('La ejecución del envio de mail a sufrido fallos')
+        raise exeption
+    
+
+def enviar_fallo():
+    dotenv.load_dotenv()
+    email_remitente = os.getenv('remitente')
+    password_email = os.getenv('password_email')
+    email_destinatario = os.getenv('destinatario')
+    try:
+        x = smtplib.SMTP('smtp.gmail.com',587)
+        x.starttls()
+        x.login(email_remitente,password_email)
+        asunto = 'Notificaciones Airflow - Ejecucion ETL copa del mundo'
+        asunto = asunto.encode('utf-8')
+        cuerpo_mensaje_exito = 'La tarea se ha ejecutado con fallos'
+        cuerpo_mensaje_exito = cuerpo_mensaje_exito.encode('utf-8')
+        mensaje_exito = 'Subject: {}\n\n{}'.format(asunto,cuerpo_mensaje_exito)
+        x.sendmail(email_remitente,email_destinatario,mensaje_exito)
+        print('Exito en el envio del mail')    
+    except Exception as exeption:
+        print(exeption)
+        print('La ejecución del envio de mail a sufrido fallos')
         raise exeption
