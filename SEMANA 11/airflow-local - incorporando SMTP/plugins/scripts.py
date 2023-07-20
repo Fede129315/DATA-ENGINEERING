@@ -9,7 +9,8 @@ import numpy as np
 import awswrangler as wr
 ###################### incorporamos lo necesario para el envío de mails
 import smtplib
-from email import message
+#from email import message
+from email.mime.text import MIMEText
 ###################### incorporo para la prueba en postgre
 '''import psycopg2
 from io import StringIO 
@@ -221,45 +222,39 @@ def cargar(ti):
     conn.close()
 
 
+def enviar_limite_reintentos(context):
+    task_instance = context['task_instance']
+    retries = task_instance.prev_attempted_tries
+    enviar_notificacion(mensaje=f'La tarea {task_instance} ha fallado y van {retries} intentos')
+
+def enviar_error_carga(context):
+    task_instance = context['task_instance']
+    enviar_notificacion(mensaje=f'La carga de informacion ha sufrido errores en {task_instance}')
+
 def enviar_exito():
-    dotenv.load_dotenv()
-    email_remitente = os.getenv('remitente')
-    password_email = os.getenv('password_email')
-    email_destinatario = os.getenv('destinatario')
-    try:
-        x = smtplib.SMTP('smtp.gmail.com',587)
-        x.starttls()
-        x.login(email_remitente,password_email)
-        asunto = 'Notificaciones Airflow - Ejecucion ETL copa del mundo'
-        asunto = asunto.encode('utf-8')
-        cuerpo_mensaje_exito = 'La tarea se ha ejecutado satisfactoriamente'
-        cuerpo_mensaje_exito = cuerpo_mensaje_exito.encode('utf-8')
-        mensaje_exito = 'Subject: {}\n\n{}'.format(asunto,cuerpo_mensaje_exito)
-        x.sendmail(email_remitente,email_destinatario,mensaje_exito)
-        print('Exito en el envio del mail')    
-    except Exception as exeption:
-        print(exeption)
-        print('La ejecución del envio de mail a sufrido fallos')
-        raise exeption
-    
+    enviar_notificacion(mensaje="El ETL se ha ejecutado satisfactoriamente")
 
 def enviar_fallo():
+    enviar_notificacion(mensaje="El ETL se ha ejecutado con fallos")
+
+def enviar_notificacion(mensaje):
     dotenv.load_dotenv()
     email_remitente = os.getenv('remitente')
     password_email = os.getenv('password_email')
     email_destinatario = os.getenv('destinatario')
+
+    message = MIMEText(mensaje)
+    message['Subject'] = 'Notificaciones Airflow - Ejecucion ETL copa del mundo'
+    message['From'] = email_remitente
+    message['To'] = email_destinatario
+
     try:
-        x = smtplib.SMTP('smtp.gmail.com',587)
-        x.starttls()
-        x.login(email_remitente,password_email)
-        asunto = 'Notificaciones Airflow - Ejecucion ETL copa del mundo'
-        asunto = asunto.encode('utf-8')
-        cuerpo_mensaje_exito = 'La tarea se ha ejecutado con fallos'
-        cuerpo_mensaje_exito = cuerpo_mensaje_exito.encode('utf-8')
-        mensaje_exito = 'Subject: {}\n\n{}'.format(asunto,cuerpo_mensaje_exito)
-        x.sendmail(email_remitente,email_destinatario,mensaje_exito)
-        print('Exito en el envio del mail')    
-    except Exception as exeption:
-        print(exeption)
-        print('La ejecución del envio de mail a sufrido fallos')
-        raise exeption
+        smtpObj = smtplib.SMTP('smtp.gmail.com', 587)
+        smtpObj.starttls()
+        smtpObj.login(email_remitente, password_email)
+        smtpObj.sendmail(email_remitente, email_destinatario, message.as_string())
+        smtpObj.quit()
+        print('Exito en el envio del mail')
+    except smtplib.SMTPException as exception:
+        print("Error al enviar el correo:", str(exception))
+        raise exception
